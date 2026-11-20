@@ -163,6 +163,9 @@ pub struct Zalsa {
     /// Vector of ingredients.
     ingredients_vec: Vec<Box<dyn Ingredient>>,
 
+    /// The type name of the jar each ingredient in `ingredients_vec` came from.
+    ingredient_jars: Vec<&'static str>,
+
     /// Indices of ingredients that require reset when a new revision starts.
     ingredients_requiring_reset: Vec<IngredientIndex>,
 
@@ -190,6 +193,7 @@ impl Zalsa {
             jar_map: HashMap::default(),
             ingredient_to_id_struct_type_id_map: Default::default(),
             ingredients_vec: Vec::new(),
+            ingredient_jars: Vec::new(),
             ingredients_requiring_reset: Vec::new(),
             runtime: Runtime::default(),
             memo_ingredient_indices: Default::default(),
@@ -284,6 +288,13 @@ impl Zalsa {
     }
 
     #[allow(unused)]
+    /// Each ingredient in index order, with the type name of the jar it came from.
+    pub(crate) fn ingredients_with_jars(
+        &self,
+    ) -> impl Iterator<Item = (&dyn Ingredient, &'static str)> {
+        self.ingredients().zip(self.ingredient_jars.iter().copied())
+    }
+
     pub(crate) fn ingredients(&self) -> impl Iterator<Item = &dyn Ingredient> {
         self.ingredients_vec
             .iter()
@@ -389,6 +400,7 @@ impl Zalsa {
             }
 
             self.ingredients_vec.push(ingredient);
+            self.ingredient_jars.push(jar.type_name());
 
             let actual_index = self.ingredients_vec.len() - 1;
             assert_eq!(

@@ -164,6 +164,9 @@ pub fn current_revision<Db: ?Sized + Database>(db: &Db) -> Revision {
 }
 
 #[cfg(feature = "persistence")]
+pub use persistence::SnapshotIngredient;
+
+#[cfg(feature = "persistence")]
 mod persistence {
     use crate::plumbing::Ingredient;
     use crate::zalsa::Zalsa;
@@ -192,6 +195,30 @@ mod persistence {
         {
             DeserializeDatabase(self.zalsa_mut()).deserialize(deserializer)
         }
+
+        /// Every ingredient in the order a snapshot numbers them. Two builds that list the same
+        /// ingredients number them alike, so a snapshot one saves can be deserialized by the
+        /// other; any other snapshot must not be.
+        pub fn snapshot_layout(&self) -> Vec<SnapshotIngredient> {
+            self.zalsa()
+                .ingredients_with_jars()
+                .map(|(ingredient, jar)| SnapshotIngredient {
+                    jar,
+                    name: ingredient.debug_name(),
+                    persisted: ingredient.is_persistable(),
+                })
+                .collect()
+        }
+    }
+
+    /// An ingredient as [`snapshot_layout`](dyn Database::snapshot_layout) lists it.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct SnapshotIngredient {
+        /// The type name of the jar the ingredient belongs to, which includes its module path.
+        pub jar: &'static str,
+        /// The ingredient's name within its jar.
+        pub name: &'static str,
+        pub persisted: bool,
     }
 
     #[derive(serde::Serialize)]
