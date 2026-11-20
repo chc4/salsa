@@ -360,10 +360,12 @@ where
         self.memo_ingredient_indices.get_zalsa_id(zalsa, id)
     }
 
-    fn view_caster(&self) -> &DatabaseDownCaster<C::DbView> {
+    /// The caster to this function's view of the database. Verifying another function's
+    /// dependencies can reach this function before it has run in the database, so the caster then
+    /// comes from the database's views.
+    fn view_caster(&self, zalsa: &Zalsa) -> &DatabaseDownCaster<C::DbView> {
         self.view_caster
-            .get()
-            .expect("tracked function ingredients cannot be accessed before calling `init`")
+            .get_or_init(|| *zalsa.views().downcaster_for::<C::DbView>())
     }
 }
 
@@ -426,13 +428,13 @@ where
 
     unsafe fn maybe_changed_after(
         &self,
-        _zalsa: &Zalsa,
+        zalsa: &Zalsa,
         db: RawDatabase<'_>,
         input: Id,
         revision: Revision,
     ) -> VerifyResult {
         // SAFETY: The `db` belongs to the ingredient as per caller invariant
-        let db = unsafe { self.view_caster().downcast_unchecked(db) };
+        let db = unsafe { self.view_caster(zalsa).downcast_unchecked(db) };
         self.maybe_changed_after(db, input, revision)
     }
 
@@ -533,6 +535,7 @@ where
     #[cfg(feature = "accumulator")]
     unsafe fn accumulated<'db>(
         &'db self,
+        zalsa: &Zalsa,
         db: RawDatabase<'db>,
         key_index: Id,
     ) -> (
@@ -540,7 +543,7 @@ where
         crate::accumulator::accumulated_map::InputAccumulatedValues,
     ) {
         // SAFETY: The `db` belongs to the ingredient as per caller invariant
-        let db = unsafe { self.view_caster().downcast_unchecked(db) };
+        let db = unsafe { self.view_caster(zalsa).downcast_unchecked(db) };
         self.accumulated_map(db, key_index)
     }
 

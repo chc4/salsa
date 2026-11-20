@@ -369,7 +369,7 @@ pub mod plumbing {
     pub use crate::storage::{HasStorage, Storage};
     pub use crate::table::memo::MemoTableWithTypes;
     pub use crate::tracked_struct::{TrackedStructInDb, update_field};
-    pub use crate::views::DatabaseDownCaster;
+    pub use crate::views::{DatabaseDownCaster, ErasedView, register_view};
     pub use crate::zalsa::{
         ErasedJar, HasJar, IngredientIndex, JarKind, Zalsa, ZalsaDatabase, register_jar,
         transmute_data_ptr, views,

@@ -55,7 +55,7 @@ where
             // Extend `output` with any values accumulated by `k`.
             // SAFETY: `db` owns the `ingredient`
             let (accumulated_map, input) =
-                unsafe { ingredient.accumulated(db.into(), k.key_index()) };
+                unsafe { ingredient.accumulated(zalsa, db.into(), k.key_index()) };
             if let Some(accumulated_map) = accumulated_map {
                 accumulated_map.extend_with_accumulated(accumulator.index(), &mut output);
             }

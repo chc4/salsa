@@ -48,8 +48,10 @@ impl DbMacro {
             }
             syn::Item::Impl(mut input) => {
                 self.add_salsa_view_method_impl(&mut input)?;
+                let register_view = self.register_view(&input);
                 Ok(quote! {
                     #input
+                    #register_view
                 })
             }
             _ => Err(syn::Error::new_spanned(
@@ -120,6 +122,28 @@ impl DbMacro {
             fn downcast(&self) -> &dyn #trait_name where Self: Sized;
         });
         Ok(())
+    }
+
+    /// Registers the impl's view of its database type, so that the database holds the view from its
+    /// creation. A generic impl has no single type to register for, so it registers nothing and
+    /// its views are added when something first casts to them.
+    fn register_view(&self, input: &syn::ItemImpl) -> TokenStream {
+        let Some((TraitPath, _)) = &input.trait_ else {
+            return TokenStream::new();
+        };
+        if !input.generics.params.is_empty() {
+            return TokenStream::new();
+        }
+        let db = &input.self_ty;
+        quote! {
+            salsa::plumbing::register_view! {
+                salsa::plumbing::ErasedView::erase::<#db>(|views| {
+                    views.add::<#db, dyn #TraitPath>(unsafe {
+                        ::std::mem::transmute(<#db as #TraitPath>::downcast as fn(_) -> _)
+                    });
+                })
+            }
+        }
     }
 
     fn add_salsa_view_method_impl(&self, input: &mut syn::ItemImpl) -> syn::Result<()> {

@@ -157,13 +157,14 @@ pub trait Ingredient: Any + fmt::Debug + Send + Sync {
     #[cfg(feature = "accumulator")]
     unsafe fn accumulated<'db>(
         &'db self,
+        zalsa: &Zalsa,
         db: RawDatabase<'db>,
         key_index: Id,
     ) -> (
         Option<&'db crate::accumulator::accumulated_map::AccumulatedMap>,
         crate::accumulator::accumulated_map::InputAccumulatedValues,
     ) {
-        let _ = (db, key_index);
+        let _ = (zalsa, db, key_index);
         (
             None,
             crate::accumulator::accumulated_map::InputAccumulatedValues::Empty,

@@ -92,15 +92,57 @@ impl<DbView: ?Sized + Any> DatabaseDownCaster<DbView> {
     }
 }
 
+/// A view of a database type, registered so that the database's [`Views`] hold every view it
+/// implements from its creation. In a database loaded from a snapshot, a tracked function can need
+/// its view to verify its dependencies before anything has cast the database to that view.
+#[derive(Clone, Copy)]
+pub struct ErasedView {
+    source_type_id: fn() -> TypeId,
+    register: fn(&Views),
+}
+
+impl ErasedView {
+    /// A view of `Concrete` that `register` adds to a [`Views`].
+    pub const fn erase<Concrete: 'static>(register: fn(&Views)) -> Self {
+        Self {
+            source_type_id: TypeId::of::<Concrete>,
+            register,
+        }
+    }
+}
+
+#[cfg(feature = "inventory")]
+inventory::collect!(ErasedView);
+
+#[cfg(feature = "inventory")]
+pub use inventory::submit as register_view;
+
+#[cfg(not(feature = "inventory"))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! register_view {
+    ($($_:tt)*) => {};
+}
+
+#[cfg(not(feature = "inventory"))]
+pub use crate::register_view;
+
 impl Views {
     pub(crate) fn new<Db: Database>() -> Self {
         let source_type_id = TypeId::of::<Db>();
         let view_casters = boxcar::Vec::new();
         view_casters.push(ViewCaster::new::<dyn Database>(|db| db.ptr.cast::<Db>()));
-        Self {
+        let views = Self {
             source_type_id,
             view_casters,
+        };
+        #[cfg(feature = "inventory")]
+        for view in inventory::iter::<ErasedView>() {
+            if (view.source_type_id)() == source_type_id {
+                (view.register)(&views);
+            }
         }
+        views
     }
 
     /// Add a new downcaster to `dyn DbView`.
