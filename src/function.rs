@@ -624,6 +624,14 @@ unsafe fn collect_minimum_serialized_edges(
         }
 
         let dependency = zalsa.lookup_ingredient(edge.key().ingredient_index());
+
+        // A persisted query's memo is serialized with its own dependencies, so the edge to it
+        // covers them.
+        if dependency.as_function().is_some() && dependency.is_persistable() {
+            serialized_edges.insert(edge);
+            continue;
+        }
+
         // SAFETY: The caller prevents database writes throughout recursive traversal.
         unsafe {
             dependency.collect_minimum_serialized_edges(
